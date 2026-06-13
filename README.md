@@ -94,6 +94,13 @@ Product Name + Price
 Smart Checkout UI
 ```
 
+
+
+## System Analysis
+<p align="center">
+  <img src="__asset__/DevLog.png" width="80%" alt="OczyEdge Classification"/>
+</p>
+
 ## Project Document
 
 <div align="center">
