@@ -100,7 +100,7 @@ Smart Checkout UI
 
 📄 **Software Project Specification Document**
 
-<a href="./SRS.pdf" download>
+<a href="__asset__/_Document/SRS.pdf" download>
   <img src="__asset__/_Document/SRS.pdf" alt="Download SRS PDF">
 </a>
 
