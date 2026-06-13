@@ -101,7 +101,7 @@ Smart Checkout UI
 📄 **Software Project Specification Document**
 
 <a href="__asset__/_Document/SRS.pdf" download>
-  <img src="__asset__/_Document/SRS.pdf" alt="Download SRS PDF">
+  <img src="https://img.shields.io/badge/Download-SRS%20PDF-red?style=for-the-badge&logo=adobeacrobatreader" alt="Download SRS PDF">
 </a>
 
 </div>
