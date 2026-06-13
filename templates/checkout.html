@@ -1,0 +1,1317 @@
+{% extends "base.html" %}
+
+{% block title %}Vision Checkout System | Product Recognition{% endblock %}
+
+{% block content %}
+{% macro render_detection_preview(result, uploaded_url, temp_filename, mode, preview_id, image_id, form_prefix, compact=False) %}
+    {% for det in result.detections %}
+    <form id="{{ form_prefix }}-correction-form-{{ det.det_id }}" class="visually-hidden-form" method="POST">
+        <input type="hidden" name="action" value="apply_correction">
+        <input type="hidden" name="mode" value="{{ mode }}">
+        <input type="hidden" name="temp_filename" value="{{ temp_filename or '' }}">
+        <input type="hidden" name="det_id" value="{{ det.det_id }}">
+    </form>
+    {% endfor %}
+
+    <div id="{{ preview_id }}" class="preview-wrap interactive-preview {% if compact %}camera-result-preview{% endif %}">
+        <div class="preview-image-frame">
+            <img id="{{ image_id }}" src="{{ uploaded_url }}" alt="Result preview with clickable bounding boxes">
+
+            <div class="bbox-layer" aria-label="Detected product bounding boxes">
+                {% for det in result.detections %}
+                {#
+                    det.bbox is expected to be normalized [center_x, center_y, width, height].
+                    Clamp the rendered CSS percentages so an edge-case bbox cannot create
+                    invalid or overflowing inline styles.
+                #}
+                {% set raw_x1 = ((det.bbox[0]|float) - (det.bbox[2]|float) / 2) * 100 %}
+                {% set raw_y1 = ((det.bbox[1]|float) - (det.bbox[3]|float) / 2) * 100 %}
+                {% set raw_bw = (det.bbox[2]|float) * 100 %}
+                {% set raw_bh = (det.bbox[3]|float) * 100 %}
+                {% set x1 = 0 if raw_x1 < 0 else raw_x1 %}
+                {% set y1 = 0 if raw_y1 < 0 else raw_y1 %}
+                {% set x1 = 99 if x1 > 99 else x1 %}
+                {% set y1 = 99 if y1 > 99 else y1 %}
+                {% set bw = 1 if raw_bw < 1 else raw_bw %}
+                {% set bh = 1 if raw_bh < 1 else raw_bh %}
+                {% set bw = 100 if bw > 100 else bw %}
+                {% set bh = 100 if bh > 100 else bh %}
+                {% set bw = 100 - x1 if x1 + bw > 100 else bw %}
+                {% set bh = 100 - y1 if y1 + bh > 100 else bh %}
+                <button class="bbox-button"
+                        type="button"
+                        data-det-id="{{ form_prefix }}-{{ det.det_id }}"
+                        data-bbox-left="{{ '%.3f'|format(x1) }}"
+                        data-bbox-top="{{ '%.3f'|format(y1) }}"
+                        data-bbox-width="{{ '%.3f'|format(bw) }}"
+                        data-bbox-height="{{ '%.3f'|format(bh) }}"
+                        aria-label="Correct box #{{ det.det_id }}{% if det.selected %}: {{ det.selected.name }}{% endif %}"
+                        aria-pressed="false">
+                    <span class="bbox-label">#{{ det.det_id }}</span>
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+
+        {% for det in result.detections %}
+        <div class="bbox-popover" data-popover-det-id="{{ form_prefix }}-{{ det.det_id }}" hidden>
+            <div class="bbox-popover-head">
+                <p class="bbox-popover-title">Correct Box #{{ det.det_id }}</p>
+                <button class="bbox-popover-close" type="button" aria-label="Close correction window">×</button>
+            </div>
+
+            <label class="mini-label" for="{{ form_prefix }}_selected_pid_popup_{{ det.det_id }}">Choose a product for this box</label>
+            <select id="{{ form_prefix }}_selected_pid_popup_{{ det.det_id }}"
+                    name="selected_pid"
+                    class="select"
+                    form="{{ form_prefix }}-correction-form-{{ det.det_id }}"
+                    data-auto-submit-form>
+                {% for c in det.top5 %}
+                <option value="{{ c.product_id }}" {% if det.selected and c.product_id == det.selected.product_id %}selected{% endif %}>
+                    {{ c.name }}{% if c.score is defined %} · {{ '%.4f'|format(c.score) }}{% endif %}
+                </option>
+                {% endfor %}
+            </select>
+            <div class="auto-save-hint">Changes are saved automatically when you select a new option.</div>
+        </div>
+        {% endfor %}
+    </div>
+{% endmacro %}
+
+{% macro render_summary(result, items, total, temp_filename, mode, compact=False) %}
+    {% if result and items %}
+    <div class="summary-scroll {% if compact %}summary-scroll-compact{% endif %}">
+        <div class="summary-list">
+            {% for item in items %}
+            <div class="summary-item">
+                <div class="summary-item-top">
+                    <p class="summary-name">{{ item.name }}</p>
+                    <span class="badge">x{{ item.quantity }}</span>
+                </div>
+                <div class="summary-meta">Price: {{ '%.2f'|format(item.price) }}</div>
+                {% if item.subtotal is defined %}
+                <div class="summary-meta">Subtotal: {{ '%.2f'|format(item.subtotal) }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="total-box {% if compact %}total-box-compact{% endif %}">
+        <div class="total-line">
+            <span>Total</span>
+            <span class="total-value">{{ '%.2f'|format(total) }}</span>
+        </div>
+
+        <form method="POST">
+            <input type="hidden" name="action" value="checkout">
+            <input type="hidden" name="mode" value="{{ mode }}">
+            <input type="hidden" name="temp_filename" value="{{ temp_filename or '' }}">
+            <div class="actions">
+                <button class="btn btn-primary" type="submit">Complete Checkout</button>
+            </div>
+        </form>
+
+        <div class="small-note">
+             
+        </div>
+    </div> 
+    {% else %}
+    <div class="empty-soft">
+        No items yet. {% if mode == 'camera' %}Start the camera and capture an image to begin.{% else %}Upload an image on the left to begin.{% endif %}
+    </div>
+    {% endif %}
+{% endmacro %}
+
+<style>
+    :root {
+        --primary: #0891b2;
+        --primary-dark: #0e7490;
+        --primary-soft: #ecfeff;
+        --border: #cfe8f0;
+        --text: #0f172a;
+        --muted: #64748b;
+    }
+
+    .panel {
+        background: linear-gradient(180deg, #ffffff 0%, #f8fdff 100%);
+        border-color: #cfe8f0;
+        box-shadow: 0 14px 34px rgba(14, 116, 144, 0.07);
+    }
+
+    .btn-primary {
+        background: #0891b2;
+        border-color: #0891b2;
+        color: #ffffff;
+        box-shadow: 0 10px 20px rgba(8, 145, 178, 0.14);
+    }
+
+    .btn-primary:hover {
+        background: #0e7490;
+        border-color: #0e7490;
+    }
+
+    .btn-secondary {
+        background: #f8fdff;
+        border-color: #bae6fd;
+        color: #155e75;
+    }
+
+    .btn-secondary:hover {
+        background: #ecfeff;
+        border-color: #67e8f9;
+    }
+
+    .grid.two-col {
+        align-items: stretch;
+    }
+
+    .grid.two-col > .panel {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .checkout-grid {
+        --checkout-panel-height: clamp(620px, calc(100vh - 185px), 760px);
+        grid-auto-rows: var(--checkout-panel-height);
+    }
+
+    .checkout-grid > .panel {
+        height: var(--checkout-panel-height);
+        max-height: var(--checkout-panel-height);
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .checkout-input-panel {
+        min-height: 0;
+    }
+
+    .checkout-input-panel .section-title,
+    .checkout-input-panel .section-desc,
+    .checkout-input-panel .mode-tabs,
+    .checkout-input-panel .upload-form,
+    .checkout-input-panel .success-state,
+    .checkout-input-panel > .empty-soft,
+    .checkout-input-panel .checkout-actions {
+        flex: 0 0 auto;
+    }
+
+    .checkout-input-panel #checkout-preview {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .checkout-input-panel #checkout-preview[hidden] {
+        display: flex !important;
+    }
+
+    .checkout-input-panel .preview-wrap.is-empty {
+        display: flex;
+    }
+
+    .checkout-input-panel .preview-wrap.is-empty img {
+        display: none !important;
+    }
+
+    .checkout-input-panel .preview-wrap:not(.camera-wrap):not([hidden]),
+    .checkout-input-panel .preview-wrap:not(.camera-wrap).is-empty {
+        display: flex;
+    }
+
+    .checkout-input-panel .preview-wrap:not(.camera-wrap) img {
+        width: auto;
+        height: 100%;
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+
+    .checkout-side-panel {
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .standard-summary-panel .summary-scroll {
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: none;
+        overflow-y: auto;
+    }
+
+    .standard-summary-panel .total-box {
+        flex: 0 0 auto;
+    }
+
+    .mode-tabs {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 18px;
+    }
+
+    .mode-tab {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: #ffffff;
+        color: var(--text);
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 600;
+        transition: 0.2s ease;
+    }
+
+    .mode-tab:hover {
+        text-decoration: none;
+        background: #ecfeff;
+    }
+
+    .mode-tab.active {
+        background: #ecfeff;
+        border-color: #a5f3fc;
+        color: #0e7490;
+    }
+
+    .object-card {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: #ffffff;
+        padding: 14px;
+        margin-bottom: 12px;
+    }
+
+    .object-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+    }
+
+    .object-title {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 700;
+    }
+
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 5px 10px;
+        border-radius: 999px;
+        background: #ecfeff;
+        color: #0e7490;
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .mini-label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 13px;
+        color: var(--muted);
+        font-weight: 600;
+    }
+
+    .select {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px 14px;
+        font-size: 14px;
+        background: #ffffff;
+        color: var(--text);
+        outline: none;
+        transition: border-color 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .select:focus {
+        border-color: #06b6d4;
+        box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.14);
+    }
+
+    .upload-form {
+        margin-bottom: 0;
+    }
+
+    .mode-tab.active,
+    .mode-tab:hover {
+        box-shadow: 0 6px 16px rgba(8, 145, 178, 0.08);
+    }
+
+    .select:hover,
+    .file-row:hover .btn-secondary {
+        border-color: #67e8f9;
+    }
+
+    .checkout-actions {
+        margin-top: 16px;
+    }
+
+    .visually-hidden-form {
+        display: none;
+    }
+
+    .summary-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .summary-scroll {
+        max-height: 420px;
+        overflow-y: auto;
+        padding-right: 6px;
+        margin-top: 2px;
+    }
+
+    .summary-scroll-compact {
+        max-height: 220px;
+    }
+
+    .summary-item {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: #ffffff;
+        padding: 14px;
+        transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+    }
+
+    .camera-summary-zone .summary-item {
+        padding: 11px 12px;
+    }
+
+    .summary-item:hover {
+        transform: translateY(-1px);
+        border-color: #a5f3fc;
+        box-shadow: 0 10px 22px rgba(14, 116, 144, 0.08);
+    }
+
+    .summary-item-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 6px;
+    }
+
+    .summary-name {
+        font-size: 14px;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .summary-meta {
+        color: var(--muted);
+        font-size: 13px;
+    }
+
+    .total-box {
+        margin-top: 10px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: #f8fdff;
+        border: 1px solid #bae6fd;
+    }
+
+    .total-box-compact {
+        margin-top: 8px;
+        padding: 8px 10px;
+    }
+
+    .total-box .actions {
+        margin-top: 0;
+    }
+
+    .total-box .btn {
+        padding: 8px 12px;
+        border-radius: 10px;
+        font-size: 13px;
+    }
+
+    .total-line {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 14px;
+        margin-bottom: 8px;
+    }
+
+    .total-value {
+        font-size: 18px;
+        font-weight: 800;
+        color: #0e7490;
+    }
+
+    .success-state {
+        padding: 16px;
+        border-radius: 12px;
+        border: 1px solid #bbf7d0;
+        background: #f0fdf4;
+        color: #166534;
+        font-size: 14px;
+    }
+
+    .empty-soft {
+        padding: 16px;
+        border: 1px dashed #c7e4ee;
+        border-radius: 12px;
+        color: var(--muted);
+        background: #f8fdff;
+        font-size: 14px;
+    }
+
+    .small-note {
+        margin-top: 5px;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.35;
+    }
+
+    .subtle-title {
+        margin: 0 0 10px;
+        font-size: 15px;
+        font-weight: 700;
+    }
+
+    .preview-wrap {
+        margin-top: 16px;
+        overflow: visible;
+    }
+
+    .preview-wrap img {
+        display: block;
+        width: auto;
+        height: 100%;
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        border-radius: 16px;
+        background: linear-gradient(180deg, #ffffff 0%, #ecfeff 100%);
+        border: 1px solid var(--border);
+        box-shadow: 0 12px 28px rgba(14, 116, 144, 0.08);
+    }
+
+    .manual-panel {
+        grid-column: 1 / -1;
+        margin-top: 18px;
+    }
+
+    .manual-panel-inner {
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: #ffffff;
+        padding: 18px;
+        box-shadow: 0 8px 24px rgba(14, 116, 144, 0.06);
+    }
+
+    .manual-panel-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+    }
+
+    .manual-panel-title {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 800;
+    }
+
+    .manual-panel-desc {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.5;
+    }
+
+    .manual-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    .manual-left,
+    .manual-right {
+        min-width: 0;
+    }
+
+    .auto-save-hint {
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+    .interactive-preview {
+        position: relative;
+        display: block;
+        width: 100%;
+        isolation: isolate;
+    }
+
+    .preview-image-frame {
+        position: relative;
+        width: fit-content;
+        max-width: 100%;
+        height: 100%;
+        margin: 0 auto;
+        overflow: hidden;
+        border-radius: 16px;
+        background: linear-gradient(180deg, #ffffff 0%, #ecfeff 100%);
+        border: 1px solid var(--border);
+        box-shadow: 0 12px 28px rgba(14, 116, 144, 0.08);
+        line-height: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .interactive-preview .preview-image-frame img {
+        display: block;
+        width: auto;
+        height: 100%;
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .bbox-layer {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        overflow: hidden;
+        border-radius: inherit;
+        pointer-events: none;
+    }
+
+    .bbox-button {
+        position: absolute;
+        display: block;
+        box-sizing: border-box;
+        appearance: none;
+        border: 2px solid #22d3ee;
+        border-radius: 12px;
+        background: rgba(34, 211, 238, 0.10);
+        cursor: pointer;
+        padding: 0;
+        pointer-events: auto;
+        transition: transform 0.16s ease, background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .bbox-button:hover,
+    .bbox-button:focus-visible,
+    .bbox-button.active {
+        border-color: #0e7490;
+        background: rgba(8, 145, 178, 0.18);
+        box-shadow: 0 0 0 4px rgba(8, 145, 178, 0.16), inset 0 0 0 999px rgba(255, 255, 255, 0.04);
+        transform: translateY(-1px);
+        outline: none;
+    }
+
+    .bbox-label {
+        position: absolute;
+        left: 6px;
+        top: 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 28px;
+        height: 28px;
+        padding: 0 8px;
+        border-radius: 999px;
+        background: rgba(236, 254, 255, 0.96);
+        color: #0e7490;
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1;
+        white-space: nowrap;
+        pointer-events: none;
+        box-shadow: 0 4px 14px rgba(8, 145, 178, 0.14);
+    }
+
+    .interactive-preview.local-preview .bbox-layer,
+    .interactive-preview.local-preview .bbox-popover {
+        display: none;
+    }
+
+    .bbox-popover {
+        position: absolute;
+        right: 14px;
+        top: 14px;
+        z-index: 5;
+        width: min(340px, calc(100% - 28px));
+        border: 1px solid #bae6fd;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.98);
+        box-shadow: 0 20px 46px rgba(14, 116, 144, 0.16);
+        padding: 16px;
+        backdrop-filter: blur(10px);
+    }
+
+    .bbox-popover[hidden] {
+        display: none;
+    }
+
+    .bbox-popover-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+    }
+
+    .bbox-popover-title {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 800;
+    }
+
+    .bbox-popover-close {
+        border: 0;
+        background: #f0fdfa;
+        color: var(--text);
+        border-radius: 999px;
+        width: 30px;
+        height: 30px;
+        cursor: pointer;
+        font-size: 16px;
+        line-height: 1;
+        transition: background 0.16s ease, transform 0.16s ease;
+    }
+
+    .bbox-popover-close:hover {
+        background: #ccfbf1;
+        transform: rotate(90deg);
+    }
+
+    .bbox-help {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+    .camera-panel-note {
+        padding: 12px 14px;
+        border: 1px solid #bae6fd;
+        border-radius: 14px;
+        background: #f8fdff;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .camera-wrap {
+        position: relative;
+        border-radius: 18px;
+        overflow: hidden;
+        background: #082f49;
+        border: 1px solid var(--border);
+        box-shadow: 0 12px 28px rgba(14, 116, 144, 0.08);
+        min-height: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .camera-wrap video {
+        display: block;
+        width: 100%;
+        height: 100%;
+        min-height: 0;
+        max-height: none;
+        object-fit: cover;
+        background: #082f49;
+    }
+
+    .camera-status {
+        position: absolute;
+        left: 14px;
+        right: 14px;
+        bottom: 14px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.92);
+        color: var(--text);
+        font-size: 13px;
+        line-height: 1.45;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, 0.14);
+    }
+
+    .camera-summary-panel {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .camera-result-zone,
+    .camera-summary-zone {
+        box-sizing: border-box;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .camera-result-zone {
+        flex: 0 0 50%;
+        display: flex;
+        flex-direction: column;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .camera-result-zone .section-title,
+    .camera-summary-zone .section-title {
+        margin-top: 0;
+    }
+
+    .camera-result-zone .section-desc,
+    .camera-summary-zone .section-desc {
+        flex: 0 0 auto;
+        margin-bottom: 10px;
+    }
+
+    .camera-summary-zone {
+        flex: 0 0 50%;
+        padding-top: 12px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .camera-summary-zone .summary-scroll {
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: none;
+        overflow-y: auto;
+        padding-right: 6px;
+    }
+
+    .camera-summary-zone .total-box {
+        flex: 0 0 auto;
+    }
+
+    .camera-result-preview {
+        flex: 1 1 auto;
+        min-height: 0;
+        margin-top: 0;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .camera-result-preview .preview-image-frame {
+        height: 100%;
+        max-height: 100%;
+        overflow: hidden;
+    }
+
+    .camera-result-preview .preview-image-frame img,
+    .camera-result-image {
+        width: auto;
+        height: 100%;
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+
+    .camera-result-zone > .empty-soft,
+    .camera-summary-zone > .empty-soft,
+    .standard-summary-panel > .empty-soft {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+    }
+
+    @media (max-width: 900px) {
+        .manual-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .bbox-popover {
+            position: fixed;
+            left: 16px;
+            right: 16px;
+            top: auto;
+            bottom: 16px;
+            width: auto;
+            max-height: calc(100vh - 32px);
+            overflow-y: auto;
+        }
+
+        .checkout-grid {
+            --checkout-panel-height: 680px;
+        }
+
+        .camera-summary-panel {
+            overflow: hidden;
+        }
+
+        .camera-result-zone,
+        .camera-summary-zone {
+            overflow: hidden;
+        }
+
+        .camera-summary-zone .summary-scroll,
+        .summary-scroll-compact {
+            max-height: none;
+        }
+    }
+</style>
+
+<div class="grid two-col checkout-grid">
+    <section class="panel checkout-input-panel">
+        <h2 class="section-title">Product Recognition</h2>
+        <p class="section-desc">
+            {% if mode == 'camera' %}
+            Use the camera to capture a checkout image. The frame is sent to the same multi-product AI pipeline only after you press Capture & Analyze.
+            {% else %}
+            Upload an image to recognize one product or multiple products for checkout.
+            {% endif %}
+        </p>
+
+        <div class="mode-tabs">
+            <a class="mode-tab {% if mode == 'single' %}active{% endif %}"
+               href="{{ url_for('checkout', mode='single') }}">
+                Single Product
+            </a>
+            <a class="mode-tab {% if mode == 'detection' %}active{% endif %}"
+               href="{{ url_for('checkout', mode='detection') }}">
+                Multiple Products
+            </a>
+            <a class="mode-tab {% if mode == 'camera' %}active{% endif %}"
+               href="{{ url_for('checkout', mode='camera') }}">
+                Camera Products
+            </a>
+        </div>
+
+        {% if error %}
+        <div class="empty-soft" style="border-style: solid; border-color: #fecaca; background: #fff7f7; color: #b42318; margin-bottom: 16px;">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        {% if checkout_done %}
+        <div class="success-state" style="margin-bottom: 16px;">
+            Checkout completed successfully. Temporary image removed.
+        </div>
+        {% endif %}
+
+        <form id="checkout-analyze-form" class="upload-form" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="mode" value="{{ mode }}">
+            <input type="hidden" name="temp_filename" value="{{ temp_filename or '' }}">
+            {% if mode == 'camera' %}
+            <input type="hidden" name="action" value="analyze">
+            <input id="captured-image" type="hidden" name="captured_image" value="">
+            <div class="camera-panel-note">
+                The live preview stays on the left. Press the button below to freeze one frame and send only that frame to checkout recognition.
+            </div>
+            {% else %}
+            <div class="field">
+                <label for="checkout-image">Image</label>
+                <div class="file-row">
+                    <input id="checkout-image" type="file" name="image" accept="image/*" hidden>
+                    <label class="btn btn-secondary" for="checkout-image">Choose File</label>
+                    <span id="checkout-file-name" class="file-name">No file selected</span>
+                </div>
+            </div>
+            {% endif %}
+        </form>
+
+        {% if mode == 'camera' %}
+        <div id="checkout-preview" class="preview-wrap camera-wrap">
+            <video id="camera-video" autoplay playsinline muted></video>
+            <canvas id="camera-canvas" hidden></canvas>
+            
+        </div>
+        {% elif mode == 'detection' and result and result.detections and uploaded_url %}
+            {{ render_detection_preview(result, uploaded_url, temp_filename, mode, 'checkout-preview', 'preview-image', 'upload') }}
+            <div id="bbox-help" class="bbox-help">Click a numbered bounding box on the image to correct its classification.</div>
+        {% elif annotated_url %}
+        <div id="checkout-preview" class="preview-wrap">
+            <img id="preview-image" src="{{ annotated_url }}" alt="Annotated preview">
+        </div>
+        {% elif uploaded_url %}
+        <div id="checkout-preview" class="preview-wrap">
+            <img id="preview-image" src="{{ uploaded_url }}" alt="Uploaded preview">
+        </div>
+        {% else %}
+        <div id="checkout-preview" class="preview-wrap is-empty">
+            <img id="preview-image" alt="Preview">
+        </div>
+        {% endif %}
+
+        <div class="actions checkout-actions">
+            {% if mode == 'camera' %}
+            <button id="camera-capture-button" class="btn btn-primary" type="button" form="checkout-analyze-form">Capture & Analyze</button>
+            {% else %}
+            <button class="btn btn-primary" type="submit" name="action" value="analyze" form="checkout-analyze-form">Analyze</button>
+            {% endif %}
+            <a class="btn btn-secondary" href="{{ url_for('index') }}">Back to Home</a>
+        </div>
+    </section>
+
+    <section class="panel checkout-side-panel {% if mode == 'camera' %}camera-summary-panel{% else %}standard-summary-panel{% endif %}">
+        {% if mode == 'camera' %}
+        <div class="camera-result-zone">
+            <h2 class="section-title">Captured Result</h2>
+            <p class="section-desc">
+                AI output for the last captured frame appears here.
+            </p>
+
+            {% if result and result.detections and uploaded_url %}
+                {{ render_detection_preview(result, uploaded_url, temp_filename, mode, 'camera-result-preview', 'camera-result-image', 'camera', True) }}
+                <div id="bbox-help-camera" class="bbox-help">Click a numbered bounding box on the result image to correct its classification.</div>
+            {% elif annotated_url %}
+            <div class="preview-wrap camera-result-preview">
+                <img class="camera-result-image" src="{{ annotated_url }}" alt="Annotated result preview">
+            </div>
+            {% elif uploaded_url %}
+            <div class="preview-wrap camera-result-preview">
+                <img class="camera-result-image" src="{{ uploaded_url }}" alt="Captured result preview">
+            </div>
+            {% else %}
+            <div class="empty-soft">
+                No captured result yet.
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="camera-summary-zone">
+            <h2 class="section-title">Checkout Summary</h2>
+            <p class="section-desc">
+                Review the recognized items and confirm checkout.
+            </p>
+            {{ render_summary(result, items, total, temp_filename, mode, True) }}
+        </div>
+        {% else %}
+        <h2 class="section-title">Checkout Summary</h2>
+        <p class="section-desc">
+            Review the recognized items and confirm checkout.
+        </p>
+        {{ render_summary(result, items, total, temp_filename, mode, False) }}
+        {% endif %}
+    </section>
+</div>
+
+{% if result and mode == 'single' %}
+<div class="manual-panel">
+    <div class="manual-panel-inner">
+        <div class="manual-panel-head">
+            <div>
+                <h3 class="manual-panel-title">Manual Correction</h3>
+                <p class="manual-panel-desc">
+                    Adjust the result if the suggested product is not correct.
+                </p>
+            </div>
+        </div>
+
+        <div class="manual-grid">
+            <div class="manual-left">
+                <div class="object-card" style="margin-bottom: 0;">
+                    <div class="object-head">
+                        <p class="object-title">Current Best Match</p>
+                        <span class="badge">Single item</span>
+                    </div>
+                    <p class="summary-meta" style="margin: 0;">
+                        {{ result.selected.name if result.selected else "No result available" }}
+                    </p>
+                </div>
+            </div>
+
+            <div class="manual-right">
+                <form method="POST">
+                    <input type="hidden" name="action" value="apply_correction">
+                    <input type="hidden" name="mode" value="{{ mode }}">
+                    <input type="hidden" name="temp_filename" value="{{ temp_filename or '' }}">
+
+                    <div class="field" style="margin-bottom: 0;">
+                        <label class="mini-label" for="selected_pid">Choose another suggestion</label>
+                        <select id="selected_pid" name="selected_pid" class="select" onchange="this.form.submit()">
+                            {% for c in result.top5 %}
+                            <option value="{{ c.product_id }}" {% if result.selected and c.product_id == result.selected.product_id %}selected{% endif %}>
+                                {{ c.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="auto-save-hint">Changes are saved automatically when you select a new option.</div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+(function () {
+    const fileInput = document.getElementById("checkout-image");
+    const fileName = document.getElementById("checkout-file-name");
+    const previewWrap = document.getElementById("checkout-preview");
+    const previewImg = document.getElementById("preview-image");
+    const bboxHelp = document.getElementById("bbox-help");
+
+    const analyzeForm = document.getElementById("checkout-analyze-form");
+    const capturedImageInput = document.getElementById("captured-image");
+    const cameraVideo = document.getElementById("camera-video");
+    const cameraCanvas = document.getElementById("camera-canvas");
+    const cameraStatus = document.getElementById("camera-status");
+    const cameraCaptureButton = document.getElementById("camera-capture-button");
+
+    let isSubmitting = false;
+    let cameraStream = null;
+
+    function normalizePercent(value, fallback) {
+        const parsed = Number.parseFloat(value);
+        return Number.isFinite(parsed) ? parsed : fallback;
+    }
+
+    function clamp(value, min, max) {
+        return Math.min(Math.max(value, min), max);
+    }
+
+    function applyBoundingBoxStyles() {
+        document.querySelectorAll(".bbox-button").forEach((button) => {
+            const left = clamp(normalizePercent(button.dataset.bboxLeft, 0), 0, 99);
+            const top = clamp(normalizePercent(button.dataset.bboxTop, 0), 0, 99);
+            const width = clamp(normalizePercent(button.dataset.bboxWidth, 1), 1, 100 - left);
+            const height = clamp(normalizePercent(button.dataset.bboxHeight, 1), 1, 100 - top);
+
+            button.style.left = `${left}%`;
+            button.style.top = `${top}%`;
+            button.style.width = `${width}%`;
+            button.style.height = `${height}%`;
+        });
+    }
+
+    function setInputPreviewVisible(visible) {
+        if (!previewWrap || previewWrap.classList.contains("camera-wrap")) return;
+
+        previewWrap.hidden = false;
+        previewWrap.classList.toggle("is-empty", !visible);
+
+        if (!previewImg) return;
+
+        previewImg.hidden = !visible;
+
+        if (!visible) {
+            previewImg.removeAttribute("src");
+        }
+    }
+
+    applyBoundingBoxStyles();
+    setInputPreviewVisible(Boolean(previewImg && previewImg.getAttribute("src")));
+
+    document.querySelectorAll("form").forEach((form) => {
+        form.addEventListener("submit", () => {
+            isSubmitting = true;
+        });
+    });
+
+    document.querySelectorAll(".mode-tab").forEach((tab) => {
+        tab.addEventListener("click", () => {
+            isSubmitting = false;
+        });
+    });
+
+    if (fileInput) {
+        fileInput.addEventListener("change", function () {
+            const file = this.files && this.files[0];
+
+            if (!file) {
+                fileName.textContent = "No file selected";
+                setInputPreviewVisible(false);
+                return;
+            }
+
+            fileName.textContent = file.name;
+
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                if (!previewWrap || !previewImg) return;
+
+                closeAllCorrectionPopovers();
+                previewImg.hidden = false;
+                previewImg.src = event.target.result;
+                setInputPreviewVisible(true);
+                previewWrap.classList.add("local-preview");
+
+                if (bboxHelp) {
+                    bboxHelp.hidden = true;
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function startCamera() {
+        if (!cameraVideo || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            if (cameraStatus) {
+                cameraStatus.textContent = "Camera API is not available in this browser. Use HTTPS or localhost and a browser that supports getUserMedia.";
+            }
+            if (cameraCaptureButton) cameraCaptureButton.disabled = true;
+            return;
+        }
+
+        try {
+            cameraStream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: { ideal: "environment" },
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
+                audio: false
+            });
+            cameraVideo.srcObject = cameraStream;
+            if (cameraStatus) {
+                 
+            }
+            if (cameraCaptureButton) cameraCaptureButton.disabled = false;
+        } catch (error) {
+            if (cameraStatus) {
+                cameraStatus.textContent = "Unable to start camera: " + error.message;
+            }
+            if (cameraCaptureButton) cameraCaptureButton.disabled = true;
+        }
+    }
+
+    if (cameraVideo) {
+        if (cameraCaptureButton) cameraCaptureButton.disabled = true;
+        startCamera();
+    }
+
+    if (cameraCaptureButton) {
+        cameraCaptureButton.addEventListener("click", function () {
+            if (!cameraVideo || !cameraCanvas || !capturedImageInput || !analyzeForm) return;
+
+            const width = cameraVideo.videoWidth;
+            const height = cameraVideo.videoHeight;
+
+            if (!width || !height) {
+                if (cameraStatus) {
+                    cameraStatus.textContent = "Camera is not ready yet. Wait until the live preview appears.";
+                }
+                return;
+            }
+
+            cameraCanvas.width = width;
+            cameraCanvas.height = height;
+
+            const context = cameraCanvas.getContext("2d");
+            context.drawImage(cameraVideo, 0, 0, width, height);
+            capturedImageInput.value = cameraCanvas.toDataURL("image/jpeg", 0.92);
+
+            if (cameraStatus) {
+                cameraStatus.textContent = "Captured frame. Sending to AI checkout pipeline…";
+            }
+
+            isSubmitting = true;
+            if (typeof analyzeForm.requestSubmit === "function") {
+                analyzeForm.requestSubmit();
+                return;
+            }
+            analyzeForm.submit();
+        });
+    }
+
+    function closeAllCorrectionPopovers() {
+        document.querySelectorAll(".bbox-popover").forEach((popover) => {
+            popover.hidden = true;
+        });
+        document.querySelectorAll(".bbox-button").forEach((button) => {
+            button.classList.remove("active");
+            button.setAttribute("aria-pressed", "false");
+        });
+    }
+
+    document.querySelectorAll(".bbox-button").forEach((button) => {
+        button.addEventListener("click", function (event) {
+            event.stopPropagation();
+            const detId = this.dataset.detId;
+            const popover = document.querySelector(`[data-popover-det-id="${detId}"]`);
+            const wasOpen = popover && !popover.hidden;
+
+            closeAllCorrectionPopovers();
+
+            if (popover && !wasOpen) {
+                popover.hidden = false;
+                this.classList.add("active");
+                this.setAttribute("aria-pressed", "true");
+            }
+        });
+    });
+
+    document.querySelectorAll(".bbox-popover-close").forEach((button) => {
+        button.addEventListener("click", function (event) {
+            event.stopPropagation();
+            closeAllCorrectionPopovers();
+        });
+    });
+
+    document.querySelectorAll(".bbox-popover").forEach((popover) => {
+        popover.addEventListener("click", function (event) {
+            event.stopPropagation();
+        });
+    });
+
+    document.querySelectorAll("[data-auto-submit-form]").forEach((control) => {
+        control.addEventListener("change", function () {
+            if (!this.form) return;
+
+            if (typeof this.form.requestSubmit === "function") {
+                this.form.requestSubmit();
+                return;
+            }
+
+            this.form.submit();
+        });
+    });
+
+    document.addEventListener("click", closeAllCorrectionPopovers);
+
+    document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") {
+            closeAllCorrectionPopovers();
+        }
+    });
+
+    window.addEventListener("pagehide", function () {
+        if (cameraStream) {
+            cameraStream.getTracks().forEach((track) => track.stop());
+        }
+
+        if (isSubmitting) return;
+
+        const tempInput = document.querySelector('input[name="temp_filename"]');
+        const tempFilename = tempInput ? tempInput.value : "";
+
+        if (!tempFilename) return;
+
+        const body = "temp_filename=" + encodeURIComponent(tempFilename);
+
+        const blob = new Blob([body], {
+            type: "application/x-www-form-urlencoded"
+        });
+
+        navigator.sendBeacon("{{ url_for('api_cleanup_temp') }}", blob);
+    });
+})();
+</script>
+{% endblock %}

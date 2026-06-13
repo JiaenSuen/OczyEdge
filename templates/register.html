@@ -1,0 +1,995 @@
+{% extends "base.html" %}
+
+{% block title %}Vision Checkout System | Product Management{% endblock %}
+
+{% block content %}
+<style>
+
+    /* Soft sage green theme: low-saturation, clean UI tone */
+    :root {
+        --text: #17372a;
+        --muted: #6a7d70;
+        --border: #dceade;
+        --surface: #ffffff;
+        --surface-soft: #f5fbf6;
+        --primary: #4f8f62;
+        --primary-hover: #447b55;
+        --primary-soft: #e8f4ec;
+        --ring: rgba(79, 143, 98, 0.18);
+    }
+
+    body {
+        background: linear-gradient(180deg, #f6fbf7 0%, #eef7f0 100%);
+        color: var(--text);
+    }
+
+    .panel {
+        background: linear-gradient(180deg, #ffffff 0%, #fbfefc 100%);
+        border: 1px solid rgba(185, 215, 193, 0.75);
+        box-shadow: 0 18px 46px rgba(38, 77, 52, 0.08);
+    }
+
+    .section-title,
+    .modal-title {
+        color: #17372a;
+    }
+
+    .section-desc,
+    .modal-subtitle,
+    .preview-placeholder,
+    .preview-top-note,
+    .modal-hint,
+    .product-count {
+        color: var(--muted);
+    }
+
+    .input,
+    .search-input {
+        border-color: var(--border);
+        background: #ffffff;
+        color: var(--text);
+        transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+
+    .input:focus,
+    .search-input:focus {
+        border-color: #9bc9a6;
+        box-shadow: 0 0 0 4px var(--ring);
+        background: #fbfefc;
+    }
+
+    .btn-primary {
+        background: linear-gradient(180deg, #5f9f70 0%, var(--primary) 100%);
+        color: #ffffff;
+        border: 1px solid #4f8f62;
+        box-shadow: 0 10px 22px rgba(79, 143, 98, 0.18);
+    }
+
+    .btn-primary:hover {
+        background: linear-gradient(180deg, #548f65 0%, var(--primary-hover) 100%);
+    }
+
+    .btn-secondary {
+        background: #f2f9f4;
+        color: #2f5f41;
+        border: 1px solid #cfe5d5;
+    }
+
+    .btn-secondary:hover {
+        background: #e8f4ec;
+    }
+
+    .file-name {
+        color: var(--muted);
+    }
+
+    .grid.two-col {
+        align-items: stretch;
+    }
+
+    .grid.two-col > .panel {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .register-form-wrap {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+    }
+
+    .register-form-body {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        flex: 1;
+    }
+
+    .preview-shell {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 280px;
+    }
+
+    .preview-wrap {
+        margin-top: 12px;
+        flex: 1;
+        min-height: 280px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px dashed #cfe3d4;
+        border-radius: 14px;
+        background: #f8fcf9;
+        overflow: hidden;
+    }
+
+    .preview-wrap {
+        margin-top: 12px;
+        flex: 1;
+        min-height: 280px;
+        height: 280px;          /* 固定展示框高度 */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px dashed #cfe3d4;
+        border-radius: 14px;
+        background: #f8fcf9;
+        overflow: hidden;
+    }
+
+    .preview-wrap img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;      
+        background: #fff;
+    }
+
+    .preview-placeholder {
+        text-align: center;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.6;
+        padding: 20px;
+    }
+
+    .product-toolbar {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+    }
+
+    .search-input {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px 14px;
+        font-size: 14px;
+        background: #fff;
+        color: var(--text);
+        outline: none;
+    }
+
+    .search-box {
+        flex: 1;
+        min-width: 220px;
+    }
+
+    .product-count {
+        font-size: 13px;
+        color: var(--muted);
+        white-space: nowrap;
+    }
+
+    .table-scroll {
+        flex: 1;
+        min-height: 0;
+        max-height: 580px;
+        overflow-y: auto;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: #fff;
+    }
+
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #f1f8f3;
+        border-bottom: 1px solid var(--border);
+        padding: 12px 14px;
+        text-align: left;
+        font-size: 13px;
+        color: var(--muted);
+        font-weight: 700;
+    }
+
+    .table tbody td {
+        border-bottom: 1px solid #e5efe7;
+        padding: 12px 14px;
+        vertical-align: middle;
+        font-size: 14px;
+    }
+
+    .table tbody tr:hover {
+        background: #f3faf5;
+    }
+
+    .product-name {
+        font-weight: 700;
+        color: var(--text);
+    }
+
+    .product-price {
+        font-variant-numeric: tabular-nums;
+        color: var(--text);
+        font-weight: 600;
+    }
+
+    .action-cell {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .btn-mini {
+        padding: 8px 11px;
+        font-size: 13px;
+        border-radius: 10px;
+        line-height: 1;
+    }
+
+    .btn-edit {
+        background: #e8f4ec;
+        color: #2f6f46;
+        border: 1px solid #cfe5d5;
+    }
+
+    .btn-edit:hover {
+        background: #dcefe2;
+    }
+
+    .empty-state {
+        padding: 16px;
+        border: 1px dashed #cfe3d4;
+        border-radius: 12px;
+        color: var(--muted);
+        background: #f8fcf9;
+        font-size: 14px;
+    }
+
+    .preview-top-note {
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+    .form-footer {
+        margin-top: auto;
+    }
+
+    /* Modal */
+    .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(23, 55, 42, 0.32);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 16px;
+    }
+
+    .modal-backdrop.show {
+        display: flex;
+    }
+
+    .modal {
+        width: min(520px, 100%);
+        background: #fff;
+        border-radius: 18px;
+        border: 1px solid rgba(134, 169, 145, 0.35);
+        box-shadow: 0 24px 80px rgba(23, 55, 42, 0.16);
+        overflow: hidden;
+    }
+
+    .modal-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 18px 18px 0;
+    }
+
+    .modal-title {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 800;
+    }
+
+    .modal-subtitle {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .modal-close {
+        border: 0;
+        background: #edf6ef;
+        color: #355342;
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        font-size: 18px;
+        cursor: pointer;
+    }
+
+    .modal-body {
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 0 18px 18px;
+        flex-wrap: wrap;
+    }
+
+    .modal-hint {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+        margin-top: -4px;
+    }
+
+
+
+    .table-scroll,
+    .preview-wrap,
+    .empty-state {
+        border-color: var(--border);
+    }
+
+    .table thead th {
+        background: #f1f8f3;
+        color: #5f7466;
+    }
+
+    .table tbody tr:hover {
+        background: #f3faf5;
+    }
+
+    .btn-edit {
+        background: #e8f4ec;
+        color: #2f6f46;
+        border-color: #cfe5d5;
+    }
+
+    .btn-edit:hover {
+        background: #dcefe2;
+    }
+
+    .modal-close:hover {
+        background: #dcefe2;
+        color: #214a33;
+    }
+
+    .section-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 6px;
+    }
+
+    .section-head .section-title {
+        margin-bottom: 4px;
+    }
+
+    .target-button {
+        white-space: nowrap;
+        margin-top: 2px;
+    }
+
+    .target-form {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .target-form .input {
+        flex: 1;
+    }
+
+    .target-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 260px;
+        overflow-y: auto;
+        padding-right: 2px;
+    }
+
+    .target-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 11px 12px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: #f8fcf9;
+    }
+
+    .target-name {
+        font-weight: 700;
+        color: var(--text);
+        line-height: 1.35;
+        word-break: break-word;
+    }
+
+    .target-meta {
+        margin-top: 2px;
+        font-size: 12px;
+        color: var(--muted);
+    }
+
+    .target-message {
+        display: none;
+        padding: 10px 12px;
+        border-radius: 12px;
+        font-size: 13px;
+        line-height: 1.45;
+    }
+
+    .target-message.show {
+        display: block;
+    }
+
+    .target-message.ok {
+        background: #edf8f0;
+        color: #2f6f46;
+        border: 1px solid #cfe5d5;
+    }
+
+    .target-message.error {
+        background: #fff7f7;
+        color: #b42318;
+        border: 1px solid #fecaca;
+    }
+
+    @media (max-width: 560px) {
+        .section-head,
+        .target-form {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .target-button {
+            width: 100%;
+        }
+    }
+
+    @media (max-width: 900px) {
+        .table-scroll {
+            max-height: 420px;
+        }
+    }
+</style>
+
+<div class="grid two-col">
+    <section class="panel">
+        <div class="register-form-wrap">
+            <div class="section-head">
+                <div>
+                    <h2 class="section-title">Register Product</h2>
+                    <p class="section-desc">
+                        Add product details and keep checkout detection targets easy to update.
+                    </p>
+                </div>
+                <button type="button" class="btn btn-secondary btn-mini target-button" id="open-target-modal">
+                    Detection Targets
+                </button>
+            </div>
+
+            {% if error %}
+            <div class="empty-state" style="border-style: solid; border-color: #fecaca; background: #fff7f7; color: #b42318; margin-bottom: 16px;">
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <form class="register-form-body" method="POST" enctype="multipart/form-data">
+                <div class="field">
+                    <label for="name">Product Name</label>
+                    <input id="name" class="input" type="text" name="name" autocomplete="off" placeholder="Enter product name" required>
+                </div>
+
+                <div class="field">
+                    <label for="price">Price</label>
+                    <input id="price" class="input" type="number" name="price" autocomplete="off" step="0.01" min="0" placeholder="Enter price" required>
+                </div>
+
+                <div class="field preview-shell">
+                    <label for="register-image">Product Image</label>
+                    <div class="file-row">
+                        <input id="register-image" type="file" name="image" accept="image/*" hidden required>
+                        <label class="btn btn-secondary" for="register-image">Choose File</label>
+                        <span id="register-file-name" class="file-name">No file selected</span>
+                    </div>
+
+                    <div id="register-preview" class="preview-wrap">
+                        
+                        <img id="preview-image" alt="" hidden>
+                    </div>
+ 
+                </div>
+
+                <div class="actions form-footer">
+                    <button class="btn btn-primary" type="submit">Save Product</button>
+                    <a class="btn btn-secondary" href="{{ url_for('index') }}">Back to Home</a>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <section class="panel">
+        <h2 class="section-title">Registered Products</h2>
+        <p class="section-desc">
+            Browse, search, edit, or remove products already stored in the system.
+        </p>
+
+        <div class="product-toolbar">
+            <div class="search-box">
+                <input id="product-search" class="search-input" type="text" placeholder="Search by product name or price...">
+            </div>
+            <div id="product-count" class="product-count"></div>
+        </div>
+
+        {% if products %}
+        <div class="table-scroll">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Price</th>
+                        <th style="width: 170px;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="product-table-body">
+                    {% for p in products %}
+                    <tr data-search="{{ p[1] }} {{ p[2] }}">
+                        <td>
+                            <div class="product-name">{{ p[1] }}</div>
+                        </td>
+                        <td>
+                            <div class="product-price">{{ '%.2f'|format(p[2]) }}</div>
+                        </td>
+                        <td>
+                            <div class="action-cell">
+                                <button
+                                    type="button"
+                                    class="btn btn-secondary btn-mini btn-edit"
+                                    data-pid="{{ p[0] }}"
+                                    data-name="{{ p[1] }}"
+                                    data-price="{{ p[2] }}"
+                                >
+                                    Edit
+                                </button>
+                                <a class="btn btn-danger btn-mini" href="/delete/{{ p[0] }}" onclick="return confirm('Delete this product?');">
+                                    Delete
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div id="product-empty-match" class="empty-state" style="display:none; margin-top: 12px;">
+            No products match your search.
+        </div>
+        {% else %}
+        <div class="empty-state">No products have been registered yet.</div>
+        {% endif %}
+    </section>
+</div>
+
+<div id="target-modal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="target-modal-title">
+        <div class="modal-head">
+            <div>
+                <h3 id="target-modal-title" class="modal-title">Detection Targets</h3>
+                <p class="modal-subtitle">
+                    Set what the checkout camera should look for. Use everyday words such as bottle, box, bread, cup, or snack package.
+                </p>
+            </div>
+            <button type="button" class="modal-close" id="target-modal-close" aria-label="Close">×</button>
+        </div>
+
+        <div class="modal-body">
+            <form id="target-form" class="target-form">
+                <input id="target-input" class="input" type="text" name="label" autocomplete="off" placeholder="Add a target, e.g. bread or lunch box">
+                <button type="submit" class="btn btn-primary">Add</button>
+            </form>
+
+            <div id="target-message" class="target-message" role="status"></div>
+
+            <div id="target-list" class="target-list">
+                {% for label in zero_shot_labels %}
+                <div class="target-row" data-target-id="{{ label[0] }}">
+                    <div>
+                        <div class="target-name">{{ label[1] }}</div>
+                        <div class="target-meta">Camera target</div>
+                    </div>
+                    <button type="button" class="btn btn-danger btn-mini target-delete" data-target-id="{{ label[0] }}">
+                        Delete
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="modal-hint">
+                These targets are saved in the database and applied to multi-product checkout detection.
+            </div>
+        </div>
+
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" id="target-done">Done</button>
+        </div>
+    </div>
+</div>
+
+<div id="edit-modal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
+        <div class="modal-head">
+            <div>
+                <h3 id="edit-modal-title" class="modal-title">Edit Product</h3>
+                <p class="modal-subtitle">
+                    Update the product name or price. Changes take effect immediately after confirmation.
+                </p>
+            </div>
+            <button type="button" class="modal-close" id="edit-modal-close" aria-label="Close">×</button>
+        </div>
+
+        <form id="edit-form" method="POST">
+            <div class="modal-body">
+                <input type="hidden" id="edit-pid" name="pid" value="">
+
+                <div class="field">
+                    <label for="edit-name">Product Name</label>
+                    <input id="edit-name" class="input" type="text" name="name" autocomplete="off" required>
+                </div>
+
+                <div class="field">
+                    <label for="edit-price">Price</label>
+                    <input id="edit-price" class="input" type="number" name="price" step="0.01" min="0" autocomplete="off" required>
+                </div>
+
+                <div class="modal-hint">
+                    Tip: press Esc to close this window.
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" id="edit-cancel">Cancel</button>
+                <button type="submit" class="btn btn-primary">Confirm Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+(function () {
+    const fileInput = document.getElementById("register-image");
+    const fileName = document.getElementById("register-file-name");
+    const previewWrap = document.getElementById("register-preview");
+    const previewImage = document.getElementById("preview-image");
+    const previewPlaceholder = document.getElementById("preview-placeholder");
+
+    const searchInput = document.getElementById("product-search");
+    const tableBody = document.getElementById("product-table-body");
+    const productCount = document.getElementById("product-count");
+    const emptyMatch = document.getElementById("product-empty-match");
+
+    const modal = document.getElementById("edit-modal");
+    const modalClose = document.getElementById("edit-modal-close");
+    const modalCancel = document.getElementById("edit-cancel");
+    const editForm = document.getElementById("edit-form");
+    const editPid = document.getElementById("edit-pid");
+    const editName = document.getElementById("edit-name");
+    const editPrice = document.getElementById("edit-price");
+
+    const targetModal = document.getElementById("target-modal");
+    const targetOpen = document.getElementById("open-target-modal");
+    const targetClose = document.getElementById("target-modal-close");
+    const targetDone = document.getElementById("target-done");
+    const targetForm = document.getElementById("target-form");
+    const targetInput = document.getElementById("target-input");
+    const targetList = document.getElementById("target-list");
+    const targetMessage = document.getElementById("target-message");
+
+    function updateCount() {
+        if (!tableBody || !productCount) return;
+
+        const rows = Array.from(tableBody.querySelectorAll("tr"));
+        const visibleRows = rows.filter(row => row.style.display !== "none");
+        productCount.textContent = `${visibleRows.length} product(s) shown`;
+        if (emptyMatch) {
+            emptyMatch.style.display = visibleRows.length === 0 && rows.length > 0 ? "block" : "none";
+        }
+    }
+
+    function filterProducts() {
+        if (!tableBody || !searchInput) return;
+
+        const query = searchInput.value.trim().toLowerCase();
+        const rows = Array.from(tableBody.querySelectorAll("tr"));
+
+        rows.forEach((row) => {
+            const text = (row.getAttribute("data-search") || "").toLowerCase();
+            row.style.display = text.includes(query) ? "" : "none";
+        });
+
+        updateCount();
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener("input", filterProducts);
+    }
+
+    if (fileInput) {
+        fileInput.addEventListener("change", function () {
+            const file = this.files && this.files[0];
+            if (!file) {
+                fileName.textContent = "No file selected";
+                if (previewPlaceholder) previewPlaceholder.style.display = "";
+                if (previewImage) previewImage.hidden = true;
+                return;
+            }
+
+            fileName.textContent = file.name;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                if (previewImage) {
+                    previewImage.src = e.target.result;
+                    previewImage.hidden = false;
+                }
+                if (previewPlaceholder) previewPlaceholder.style.display = "none";
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function setTargetMessage(message, type) {
+        if (!targetMessage) return;
+
+        targetMessage.textContent = message || "";
+        targetMessage.className = "target-message";
+
+        if (message) {
+            targetMessage.classList.add("show");
+            targetMessage.classList.add(type === "error" ? "error" : "ok");
+        }
+    }
+
+    function renderTargets(labels) {
+        if (!targetList) return;
+
+        targetList.innerHTML = "";
+
+        if (!labels || labels.length === 0) {
+            const empty = document.createElement("div");
+            empty.className = "empty-state";
+            empty.textContent = "No detection targets yet.";
+            targetList.appendChild(empty);
+            return;
+        }
+
+        labels.forEach((label) => {
+            const row = document.createElement("div");
+            row.className = "target-row";
+            row.dataset.targetId = label.id;
+
+            const textWrap = document.createElement("div");
+
+            const name = document.createElement("div");
+            name.className = "target-name";
+            name.textContent = label.name;
+
+            const meta = document.createElement("div");
+            meta.className = "target-meta";
+            meta.textContent = "Camera target";
+
+            const del = document.createElement("button");
+            del.type = "button";
+            del.className = "btn btn-danger btn-mini target-delete";
+            del.dataset.targetId = label.id;
+            del.textContent = "Delete";
+
+            textWrap.appendChild(name);
+            textWrap.appendChild(meta);
+            row.appendChild(textWrap);
+            row.appendChild(del);
+            targetList.appendChild(row);
+        });
+    }
+
+    async function loadTargets() {
+        if (!targetList) return;
+
+        try {
+            const response = await fetch("/api/zero-shot-labels");
+            const data = await response.json();
+
+            if (!response.ok || !data.ok) {
+                throw new Error(data.error || "Unable to load detection targets.");
+            }
+
+            renderTargets(data.labels);
+        } catch (error) {
+            setTargetMessage(error.message, "error");
+        }
+    }
+
+    function openTargetModal() {
+        if (!targetModal) return;
+        targetModal.classList.add("show");
+        targetModal.setAttribute("aria-hidden", "false");
+        setTargetMessage("", "ok");
+        loadTargets();
+        setTimeout(() => targetInput && targetInput.focus(), 50);
+    }
+
+    function closeTargetModal() {
+        if (!targetModal) return;
+        targetModal.classList.remove("show");
+        targetModal.setAttribute("aria-hidden", "true");
+    }
+
+    async function addTarget(e) {
+        e.preventDefault();
+
+        if (!targetInput) return;
+
+        const label = targetInput.value.trim();
+
+        if (!label) {
+            setTargetMessage("Please enter a detection target first.", "error");
+            return;
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append("label", label);
+
+            const response = await fetch("/api/zero-shot-labels", {
+                method: "POST",
+                body: formData,
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.ok) {
+                throw new Error(data.error || "Unable to add this target.");
+            }
+
+            renderTargets(data.labels);
+            targetInput.value = "";
+            setTargetMessage(data.created ? "Detection target added." : "This target is already in the list.", "ok");
+            targetInput.focus();
+        } catch (error) {
+            setTargetMessage(error.message, "error");
+        }
+    }
+
+    async function deleteTarget(targetId) {
+        if (!targetId) return;
+
+        if (!confirm("Delete this detection target?")) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/zero-shot-labels/${targetId}`, {
+                method: "DELETE",
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.ok) {
+                throw new Error(data.error || "Unable to delete this target.");
+            }
+
+            renderTargets(data.labels);
+            setTargetMessage("Detection target deleted.", "ok");
+        } catch (error) {
+            setTargetMessage(error.message, "error");
+        }
+    }
+
+    function openModal(pid, name, price) {
+        if (!modal || !editForm) return;
+        editPid.value = pid;
+        editName.value = name;
+        editPrice.value = price;
+        editForm.action = `/edit/${pid}`;
+        modal.classList.add("show");
+        modal.setAttribute("aria-hidden", "false");
+        setTimeout(() => editName.focus(), 50);
+    }
+
+    function closeModal() {
+        if (!modal) return;
+        modal.classList.remove("show");
+        modal.setAttribute("aria-hidden", "true");
+    }
+
+    if (targetOpen) targetOpen.addEventListener("click", openTargetModal);
+    if (targetClose) targetClose.addEventListener("click", closeTargetModal);
+    if (targetDone) targetDone.addEventListener("click", closeTargetModal);
+    if (targetForm) targetForm.addEventListener("submit", addTarget);
+
+    if (targetModal) {
+        targetModal.addEventListener("click", function (e) {
+            if (e.target === targetModal) closeTargetModal();
+        });
+    }
+
+    if (targetList) {
+        targetList.addEventListener("click", function (e) {
+            const button = e.target.closest(".target-delete");
+            if (button) deleteTarget(button.dataset.targetId);
+        });
+    }
+
+    document.querySelectorAll(".btn-edit").forEach((btn) => {
+        btn.addEventListener("click", function () {
+            openModal(
+                this.dataset.pid,
+                this.dataset.name,
+                this.dataset.price
+            );
+        });
+    });
+
+    if (modalClose) modalClose.addEventListener("click", closeModal);
+    if (modalCancel) modalCancel.addEventListener("click", closeModal);
+
+    if (modal) {
+        modal.addEventListener("click", function (e) {
+            if (e.target === modal) closeModal();
+        });
+    }
+
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && modal && modal.classList.contains("show")) {
+            closeModal();
+        }
+
+        if (e.key === "Escape" && targetModal && targetModal.classList.contains("show")) {
+            closeTargetModal();
+        }
+    });
+
+    if (tableBody) updateCount();
+})();
+</script>
+{% endblock %}

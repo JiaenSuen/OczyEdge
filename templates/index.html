@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Vision Checkout System | Home{% endblock %}
+
+{% block content %}
+<div class="grid two-col">
+    <section class="panel">
+        <h2 class="section-title">Product Management</h2>
+        <p class="section-desc">
+            Add, review, and maintain product records in a structured and minimal interface.
+        </p>
+        <div class="actions" style="margin-top:auto;">
+            <a class="btn btn-primary" href="{{ url_for('register') }}">Go to Product Management</a>
+        </div>
+    </section>
+
+    <section class="panel">
+        <h2 class="section-title">Checkout</h2>
+        <p class="section-desc">
+            Upload an image to recognize a product and display its matched result.
+        </p>
+        <div class="actions" style="margin-top:auto;">
+            <a class="btn btn-primary" href="{{ url_for('checkout') }}">Go to Checkout</a>
+        </div>
+    </section>
+</div>
+{% endblock %}
