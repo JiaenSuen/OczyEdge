@@ -92,7 +92,7 @@ Re-ranking / Matching Model
 Product Name + Price
     ↓
 Smart Checkout UI
-
+```
 
 ## Project Document
 
