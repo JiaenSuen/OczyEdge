@@ -92,3 +92,16 @@ Re-ranking / Matching Model
 Product Name + Price
     ↓
 Smart Checkout UI
+
+
+## Project Document
+
+<div align="center">
+
+📄 **Software Project Specification Document**
+
+<a href="./SRS.pdf" download>
+  <img src="__asset__/_Document/SRS.pdf" alt="Download SRS PDF">
+</a>
+
+</div>
