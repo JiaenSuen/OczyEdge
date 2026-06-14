@@ -24,7 +24,7 @@
 Instead of training a new classifier whenever products change, OczyEdge allows store owners to register products by uploading only a small number of reference images and metadata. The system encodes product images into embeddings, retrieves visually and semantically similar products, and supports smart checkout workflows on resource-constrained edge devices.
 
 <p align="center">
-  <img src="__asset__/DEMO.png" width="80%" alt="OczyEdge Demo Placeholder"/>
+  <img src="__asset__/DEMO.png" width="90%" alt="OczyEdge Demo Placeholder"/>
 </p>
 
 ---
@@ -98,7 +98,7 @@ Smart Checkout UI
 
 ## System Analysis
 <p align="center">
-  <img src="__asset__/DevLog.png" width="80%" alt="OczyEdge Classification"/>
+  <img src="__asset__/DevLog.png" width="85%" alt="OczyEdge Classification"/>
 </p>
 
 ## Project Document
