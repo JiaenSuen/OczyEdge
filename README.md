@@ -8,8 +8,8 @@
 
 <br/>
 
-[![Status](https://img.shields.io/badge/status-in%20development-orange)]()
-[![Edge AI](https://img.shields.io/badge/Edge%20AI-Jetson%20Orin-blue)](https://developer.nvidia.com/embedded/jetson-orin)
+[![Status](https://img.shields.io/badge/status-in_development-orange)]()
+[![Edge AI](https://img.shields.io/badge/Edge_AI-Jetson_Orin-blue)](https://developer.nvidia.com/embedded/jetson-orin)
 [![Vision-Language](https://img.shields.io/badge/Vision--Language-Retrieval-purple)]()
 [![License](https://img.shields.io/badge/license-MIT-green)]()
 
