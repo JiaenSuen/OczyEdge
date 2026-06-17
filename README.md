@@ -9,7 +9,7 @@
 <br/>
 
 [![Status](https://img.shields.io/badge/status-in%20development-orange)]()
-[![Edge AI](https://img.shields.io/badge/Edge%20AI-Jetson%20Orin-blue)]()
+[![Edge AI](https://img.shields.io/badge/Edge%20AI-JetsonOrin-blue)]()
 [![Vision-Language](https://img.shields.io/badge/Vision--Language-Retrieval-purple)]()
 [![License](https://img.shields.io/badge/license-MIT-green)]()
 
