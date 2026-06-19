@@ -226,10 +226,8 @@ def _save_crop_image(crop, temp_filename, det_id):
     return crop_path
 
 
-# --------------------------------------------------
-# Retrieval
-# --------------------------------------------------
 
+# Retrieval
 def _get_image_matches_from_image(image, top_k=5):
     """
     SigLIP retrieval from a PIL Image.
@@ -311,10 +309,7 @@ def _build_summary_from_detections(detections):
     return items, round(total, 2)
 
 
-# --------------------------------------------------
 # Recognition State
-# --------------------------------------------------
-
 def _build_single_state(image_path, selected_pid=None):
     top5 = _get_image_matches_from_path(image_path, top_k=5)
 
@@ -402,10 +397,8 @@ def _build_detection_state(image_path, temp_filename):
     }
 
 
-# --------------------------------------------------
-# Annotation
-# --------------------------------------------------
 
+# Annotation
 def _annotate_single(image_path, output_path, selected_name):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
