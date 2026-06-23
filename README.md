@@ -74,8 +74,10 @@ OczyEdge focuses on a more practical retail scenario:
 
 ## System Pipeline
 
-![image](__asset__/Architecture.png)
-
+ 
+<p align="center">
+  <img src="__asset__/Architecture.png" width="85%" alt="OczyEdge Architecture"/>
+</p>
 
 
 ## System Analysis
