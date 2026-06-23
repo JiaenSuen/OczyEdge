@@ -74,25 +74,7 @@ OczyEdge focuses on a more practical retail scenario:
 
 ## System Pipeline
 
-```text
-Camera Input
-    ↓
-Region Proposal / Product Localization
-    ↓
-Product Crop
-    ↓
-Vision-Language Image Embedding
-    ↓
-Vector Retrieval
-    ↓
-Top-k Candidate Products
-    ↓
-Re-ranking / Matching Model
-    ↓
-Product Name + Price
-    ↓
-Smart Checkout UI
-```
+![image](__asset__/Architecture.png)
 
 
 
