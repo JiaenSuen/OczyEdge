@@ -76,7 +76,7 @@ OczyEdge focuses on a more practical retail scenario:
 
  
 <p align="center">
-  <img src="__asset__/Architecture.png" width="85%" alt="OczyEdge Architecture"/>
+  <img src="__asset__/Architecture.png" width="90%" alt="OczyEdge Architecture"/>
 </p>
 
 
