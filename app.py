@@ -49,9 +49,7 @@ CHECKOUT_STATE = {}
 CURRENT_CHECKOUT_MODE = None
 
 
-# --------------------------------------------------
 # Utility
-# --------------------------------------------------
 
 def _font(size=18):
     try:
@@ -500,9 +498,7 @@ def _annotate_detection(image_path, output_path, detections):
     return output_path
 
 
-# --------------------------------------------------
 # Render
-# --------------------------------------------------
 
 def _state_to_summary(result):
     if not result:
@@ -615,9 +611,7 @@ except Exception as e:
     print(f"Initial detection target sync skipped: {e}")
 
 
-# --------------------------------------------------
 # Routes
-# --------------------------------------------------
 
 @app.route("/")
 def index():
@@ -869,9 +863,7 @@ def checkout():
     )
 
 
-# --------------------------------------------------
 # API Routes
-# --------------------------------------------------
 
 @app.route("/api/health", methods=["GET"])
 def api_health():
@@ -1038,9 +1030,7 @@ def api_cleanup_temp():
     })
 
 
-# --------------------------------------------------
 # Startup / Shutdown
-# --------------------------------------------------
 
 def startup():
     print("Clearing temp checkout files...")

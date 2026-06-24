@@ -71,7 +71,7 @@ class ZeroShotDetector:
         model_name_or_path: Optional[str] = None,
         api_url: Optional[str] = None,
         model_name: Optional[str] = None,
-        conf: float = 0.30,
+        conf: float = 0.18,
         iou: float = 0.60,
         imgsz: int = 640,
         max_detections: int = 30,
