@@ -27,8 +27,20 @@ Instead of training a new classifier whenever products change, OczyEdge allows s
   <img src="__asset__/DEMO.png" width="90%" alt="OczyEdge Demo Placeholder"/>
 </p>
 
----
+## Project Document
 
+<div align="center">
+
+📄 **Software Project Specification Document**
+
+<a href="__asset__/_Document/OczyEdge.pdf" download>
+  <img src="https://img.shields.io/badge/Download-SRS%20PDF-red?style=for-the-badge&logo=adobeacrobatreader" alt="Download Project Report PDF">
+</a>
+
+</div>
+
+
+ 
 ## Why OczyEdge?
 
 Traditional product recognition systems often require:
@@ -42,6 +54,13 @@ Traditional product recognition systems often require:
 OczyEdge focuses on a more practical retail scenario:
 
 > **Can small retailers build a usable smart checkout system without collecting large datasets or retraining models?**
+<p align="center">
+  <img src="__asset__/Application.png" width="90%" alt="OczyEdge Architecture"/>
+</p>
+
+<p align="center">
+  <img src="__asset__/Characteristic.png" width="90%" alt="OczyEdge Architecture"/>
+</p>
 
 ---
 
@@ -64,10 +83,7 @@ OczyEdge focuses on a more practical retail scenario:
     <td><b>Smart Checkout Workflow</b></td>
     <td>Detect products, retrieve candidates, display product information, and assist checkout confirmation.</td>
   </tr>
-  <tr>
-    <td><b>Re-ranking Support</b></td>
-    <td>Improve recognition accuracy by re-ranking top-k retrieval candidates with a lightweight matching model.</td>
-  </tr>
+ 
 </table>
 
 ---
@@ -81,18 +97,61 @@ OczyEdge focuses on a more practical retail scenario:
 
 
 ## System Analysis
-<p align="center">
-  <img src="__asset__/DevLog.png" width="85%" alt="OczyEdge Classification"/>
-</p>
-
-## Project Document
-
 <div align="center">
 
-📄 **Software Project Specification Document**
+## Grocery Store Packages Dataset Comparison
 
-<a href="__asset__/_Document/OczyEdge.pdf" download>
-  <img src="https://img.shields.io/badge/Download-SRS%20PDF-red?style=for-the-badge&logo=adobeacrobatreader" alt="Download Project Report PDF">
-</a>
+<p><strong>31 Classes · 833 Test Images</strong></p>
+
+<table>
+  <thead>
+    <tr>
+      <th align="center">Embedding Model</th>
+      <th align="center">Top-1 Accuracy</th>
+      <th align="center">Top-5 Accuracy</th>
+      <th align="center">Avg. Similarity</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td align="center"><strong>SigLIP</strong></td>
+      <td align="center"><strong>72.27%</strong></td>
+      <td align="center"><strong>94.96%</strong></td>
+      <td align="center"><strong>84.38%</strong></td>
+    </tr>
+    <tr>
+      <td align="center">MobileCLIP</td>
+      <td align="center">59.90%</td>
+      <td align="center">88.00%</td>
+      <td align="center">73.38%</td>
+    </tr>
+    <tr>
+      <td align="center">CLIP</td>
+      <td align="center">51.86%</td>
+      <td align="center">81.63%</td>
+      <td align="center">81.94%</td>
+    </tr>
+    <tr>
+      <td align="center">ResNet</td>
+      <td align="center">39.74%</td>
+      <td align="center">67.95%</td>
+      <td align="center">81.52%</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><em>Best-performing results are highlighted in bold.</em></p>
 
 </div>
+
+
+
+## Project User Concept
+ 
+<p align="center">
+  <img src="__asset__/USECASE_SoftwareEngineering.png" width="90%" alt="OczyEdge Architecture"/>
+</p>
+
+<p align="center">
+  <img src="__asset__/ActivityDiagram.png" width="90%" alt="OczyEdge Architecture"/>
+</p>
